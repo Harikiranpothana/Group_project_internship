@@ -1,36 +1,49 @@
-SQL_GENERATION_PROMPT = """
+def build_sql_prompt(schema: dict, question: str) -> str:
+    """
+    Builds the prompt for Gemini to generate SQL.
+    """
+
+    schema_text = ""
+
+    for table in schema["tables"]:
+
+        schema_text += f"\nTable: {table['table_name']}\n"
+
+        for column in table["columns"]:
+            schema_text += (
+                f"  - {column['name']} "
+                f"({column['type']})\n"
+            )
+
+    prompt = f"""
 You are an expert Google BigQuery SQL developer.
 
-Database Schema:
-{schema}
+Your task is to generate ONLY a valid Google BigQuery SQL query.
 
-User Question:
+DATABASE SCHEMA
+----------------
+{schema_text}
+
+RULES
+----------------
+1. Generate ONLY SQL.
+2. Do NOT explain anything.
+3. Do NOT use markdown.
+4. Do NOT use ```sql.
+5. Never use SELECT *.
+6. Select only required columns.
+7. Use only tables and columns provided in the schema.
+8. Never create or modify data.
+9. Never use INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE or MERGE.
+10. Prefer LIMIT 100 unless the question asks for aggregates.
+11. If a JOIN is required, infer it using common key names.
+12. Output must be executable in Google BigQuery.
+
+USER QUESTION
+----------------
 {question}
 
-Rules:
-
-1. Generate ONLY Google BigQuery SQL.
-2. Return ONLY SQL.
-3. Never use SELECT *.
-4. Select only required columns.
-5. Use LIMIT where appropriate.
-6. Do not generate INSERT, UPDATE, DELETE, DROP, ALTER or TRUNCATE.
-7. Use proper GROUP BY when aggregation is used.
+Return ONLY the SQL query.
 """
 
-
-EXPLANATION_PROMPT = """
-You are a Business Intelligence Analyst.
-
-User Question:
-{question}
-
-SQL Result:
-{result}
-
-Generate a short business-friendly explanation.
-
-Do not mention SQL.
-
-Keep the response concise.
-"""
+    return prompt.strip()
