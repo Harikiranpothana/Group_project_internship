@@ -1,34 +1,56 @@
-from typing import List, Dict, Any
+from app.services.schema_service import schema_service
+from app.services.gemini_service import gemini_service
+from app.services.sql_validator import sql_validator
+from app.services.bigquery_service import bigquery_service
 
-from google.cloud import bigquery
 
-from app.core.config import settings
-
-
-class BigQueryService:
+class QueryPipeline:
     """
-    Handles all communication with Google BigQuery.
+    Complete Natural Language -> SQL -> BigQuery pipeline.
     """
 
-    def __init__(self):
+    def process_query(self, question: str):
 
-        self.client = bigquery.Client.from_service_account_json(
-            settings.GOOGLE_APPLICATION_CREDENTIALS,
-            project=settings.PROJECT_ID
+        # -----------------------------
+        # Step 1 : Load Schema
+        # -----------------------------
+
+        schema = schema_service.get_schema()
+
+        # -----------------------------
+        # Step 2 : Generate SQL
+        # -----------------------------
+
+        generated_sql = gemini_service.generate_sql(
+            schema,
+            question
         )
 
-    def execute_query(self, sql: str) -> List[Dict[str, Any]]:
-        """
-        Executes a SQL query and returns the result
-        as a list of dictionaries.
-        """
+        # -----------------------------
+        # Step 3 : Validate SQL
+        # -----------------------------
 
-        query_job = self.client.query(sql)
+        validated_sql = sql_validator.validate(
+            generated_sql
+        )
 
-        results = query_job.result()
+        # -----------------------------
+        # Step 4 : Execute SQL
+        # -----------------------------
 
-        return [dict(row.items()) for row in results]
+        results = bigquery_service.execute_query(
+            validated_sql
+        )
+
+        # -----------------------------
+        # Step 5 : Return Raw Data
+        # -----------------------------
+
+        return {
+            "success": True,
+            "data": results
+        }
 
 
-# Singleton instance
-bigquery_service = BigQueryService()
+# Singleton Instance
+query_pipeline = QueryPipeline()
