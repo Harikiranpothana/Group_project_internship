@@ -4,11 +4,12 @@ from app.services.schema_service import schema_service
 from app.services.gemini_service import gemini_service
 from app.services.sql_validator import sql_validator
 from app.services.bigquery_service import bigquery_service
+from app.services.explanation_service import explanation_service
 
 
 class QueryPipeline:
     """
-    Complete Natural Language → SQL → BigQuery pipeline.
+    Complete Natural Language → SQL → BigQuery → AI Explanation pipeline.
     """
 
     # --------------------------------------------------
@@ -107,16 +108,36 @@ class QueryPipeline:
                 qualified_sql
             )
 
+            print("\n============= QUERY RESULTS =============")
+            print(f"Rows Returned : {len(results)}")
+            print("=========================================\n")
+
             # ------------------------------------
-            # Step 6 : Return Response
+            # Step 6 : Generate AI Explanation
+            # ------------------------------------
+
+            answer = explanation_service.generate_explanation(
+                question=question,
+                sql=qualified_sql,
+                data=results
+            )
+
+            print("\n========== AI EXPLANATION ===============")
+            print(answer)
+            print("=========================================\n")
+
+            # ------------------------------------
+            # Step 7 : Return Response
             # ------------------------------------
 
             return {
                 "success": True,
                 "message": "Query executed successfully.",
-                "answer": None,
-                "data": results,
-                "row_count": len(results)
+                "question": question,
+                "generated_sql": qualified_sql,
+                "answer": answer,
+                "row_count": len(results),
+                "data": results
             }
 
         except Exception as e:
