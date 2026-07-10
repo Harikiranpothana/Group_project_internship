@@ -1,56 +1,34 @@
-from app.services.schema_service import schema_service
-from app.services.gemini_service import gemini_service
-from app.services.sql_validator import sql_validator
-from app.services.bigquery_service import bigquery_service
+from typing import List, Dict, Any
+
+from google.cloud import bigquery
+
+from app.core.config import settings
 
 
-class QueryPipeline:
+class BigQueryService:
     """
-    Complete Natural Language -> SQL -> BigQuery pipeline.
+    Handles all communication with Google BigQuery.
     """
 
-    def process_query(self, question: str):
+    def __init__(self):
 
-        # -----------------------------
-        # Step 1 : Load Schema
-        # -----------------------------
-
-        schema = schema_service.get_schema()
-
-        # -----------------------------
-        # Step 2 : Generate SQL
-        # -----------------------------
-
-        generated_sql = gemini_service.generate_sql(
-            schema,
-            question
+        self.client = bigquery.Client.from_service_account_json(
+            settings.GOOGLE_APPLICATION_CREDENTIALS,
+            project=settings.PROJECT_ID
         )
 
-        # -----------------------------
-        # Step 3 : Validate SQL
-        # -----------------------------
+    def execute_query(self, sql: str) -> List[Dict[str, Any]]:
+        """
+        Executes a SQL query and returns the result
+        as a list of dictionaries.
+        """
 
-        validated_sql = sql_validator.validate(
-            generated_sql
-        )
+        query_job = self.client.query(sql)
 
-        # -----------------------------
-        # Step 4 : Execute SQL
-        # -----------------------------
+        results = query_job.result()
 
-        results = bigquery_service.execute_query(
-            validated_sql
-        )
-
-        # -----------------------------
-        # Step 5 : Return Raw Data
-        # -----------------------------
-
-        return {
-            "success": True,
-            "data": results
-        }
+        return [dict(row.items()) for row in results]
 
 
 # Singleton Instance
-query_pipeline = QueryPipeline()
+bigquery_service = BigQueryService()
